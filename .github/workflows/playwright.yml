@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -40,7 +40,7 @@ jobs:
       - name: Run Playwright tests
         id: playwright
         continue-on-error: true
-        run: npx playwright test
+        run: npx playwright test --reporter=dot,html,json
 
       - name: Read Playwright JSON report
         if: always()
