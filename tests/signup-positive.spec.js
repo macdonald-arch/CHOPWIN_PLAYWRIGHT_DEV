@@ -18,7 +18,7 @@ test.describe('Signup - Positive', () => {
     await signup.confirmOtp();
 
     // Wait for redirect away from OTP page after successful verification
-    await page.waitForURL(url => !url.includes('activate-account'), { timeout: 15000 });
+    await page.waitForURL(url => !url.toString().includes('activate-account'), { timeout: 15000 });
     await expect(page).not.toHaveURL(/activate-account/);
   });
 
