@@ -1,4 +1,4 @@
-name: Playwright Tests
+name: Playwright Tests – ChopBet CI
 
 on:
   push:
@@ -7,13 +7,19 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '0 5 * * *'   # 6:00 AM Nigeria time
-    - cron: '0 20 * * *'  # 9:00 PM Nigeria time
+    - cron: '0 5 * * *'    # 6:00 AM Nigeria time
+    - cron: '0 20 * * *'   # 9:00 PM Nigeria time
 
 jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+
+    env:
+      SITE_PASSCODE: ${{ secrets.SITE_PASSCODE }}
+      TEST_PHONE: ${{ secrets.TEST_PHONE }}
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      TEST_PIN: ${{ secrets.TEST_PIN }}
 
     steps:
       - name: Checkout repository
@@ -44,54 +50,48 @@ jobs:
           node -e "
           const fs = require('fs');
 
-          let passed = 0;
-          let failed = 0;
-          let skipped = 0;
-          let timedOut = 0;
-          let interrupted = 0;
-          let durationMs = 0;
+          let passed = 0, failed = 0, skipped = 0, timedOut = 0, interrupted = 0, durationMs = 0;
 
           function walkSuite(suite) {
-            if (suite.specs) {
-              for (const spec of suite.specs) {
-                for (const test of spec.tests || []) {
-                  for (const result of test.results || []) {
-                    durationMs += result.duration || 0;
-                  }
-
-                  const statuses = (test.results || []).map(r => r.status);
-                  if (statuses.includes('failed')) failed++;
-                  else if (statuses.includes('timedOut')) timedOut++;
-                  else if (statuses.includes('interrupted')) interrupted++;
-                  else if (statuses.includes('skipped')) skipped++;
-                  else if (statuses.includes('passed')) passed++;
+            for (const spec of suite.specs || []) {
+              for (const test of spec.tests || []) {
+                for (const result of test.results || []) {
+                  durationMs += result.duration || 0;
                 }
+                const statuses = (test.results || []).map(r => r.status);
+                if (statuses.includes('failed')) failed++;
+                else if (statuses.includes('timedOut')) timedOut++;
+                else if (statuses.includes('interrupted')) interrupted++;
+                else if (statuses.includes('skipped')) skipped++;
+                else if (statuses.includes('passed')) passed++;
               }
             }
-
-            for (const child of suite.suites || []) {
-              walkSuite(child);
-            }
+            for (const child of suite.suites || []) walkSuite(child);
           }
 
           try {
             const report = JSON.parse(fs.readFileSync('test-results/results.json', 'utf8'));
             for (const suite of report.suites || []) walkSuite(suite);
-          } catch (error) {
-            console.log('Could not read Playwright JSON report');
+          } catch (e) {
+            console.log('Could not read Playwright JSON report:', e.message);
           }
 
           const totalFailed = failed + timedOut + interrupted;
           const status = totalFailed > 0 ? 'failed' : 'passed';
-          const durationSec = Math.round(durationMs / 1000);
+          const durationMin = Math.floor(durationMs / 60000);
+          const durationSec = Math.round((durationMs % 60000) / 1000);
+          const durationFormatted = durationMin > 0
+            ? durationMin + 'm ' + durationSec + 's'
+            : durationSec + 's';
 
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'status=' + status + '\n');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'passed=' + passed + '\n');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'failed=' + failed + '\n');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'skipped=' + skipped + '\n');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'timed_out=' + timedOut + '\n');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'interrupted=' + interrupted + '\n');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'duration_sec=' + durationSec + '\n');
+          const out = process.env.GITHUB_OUTPUT;
+          fs.appendFileSync(out, 'status=' + status + '\n');
+          fs.appendFileSync(out, 'passed=' + passed + '\n');
+          fs.appendFileSync(out, 'failed=' + failed + '\n');
+          fs.appendFileSync(out, 'skipped=' + skipped + '\n');
+          fs.appendFileSync(out, 'timed_out=' + timedOut + '\n');
+          fs.appendFileSync(out, 'interrupted=' + interrupted + '\n');
+          fs.appendFileSync(out, 'duration=' + durationFormatted + '\n');
           "
 
       - name: Upload Playwright report
@@ -114,7 +114,10 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [ "${{ steps.summary.outputs.status }}" = "passed" ]; then
+          STATUS="${{ steps.summary.outputs.status }}"
+          TRIGGER="${{ github.event_name }}"
+
+          if [ "$STATUS" = "passed" ]; then
             ICON="✅"
             STATE="PASSED"
           else
@@ -122,38 +125,52 @@ jobs:
             STATE="FAILED"
           fi
 
+          # Human-readable trigger label
+          case "$TRIGGER" in
+            schedule)        TRIGGER_LABEL="⏰ Scheduled Run" ;;
+            push)            TRIGGER_LABEL="⬆️ Push to ${{ github.ref_name }}" ;;
+            pull_request)    TRIGGER_LABEL="🔀 Pull Request" ;;
+            workflow_dispatch) TRIGGER_LABEL="▶️ Manual Run" ;;
+            *)               TRIGGER_LABEL="$TRIGGER" ;;
+          esac
+
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           PAYLOAD=$(cat <<EOF
           {
-            "text": "${ICON} Playwright Tests ${STATE}",
+            "text": "${ICON} ChopBet Playwright Tests ${STATE}",
             "blocks": [
               {
-                "type": "section",
+                "type": "header",
                 "text": {
-                  "type": "mrkdwn",
-                  "text": "*${ICON} Playwright Tests ${STATE}*"
+                  "type": "plain_text",
+                  "text": "${ICON} ChopBet · Playwright Tests ${STATE}",
+                  "emoji": true
                 }
               },
               {
                 "type": "section",
                 "fields": [
-                  { "type": "mrkdwn", "text": "*Repo:*\n${{ github.repository }}" },
-                  { "type": "mrkdwn", "text": "*Branch:*\n${{ github.ref_name }}" },
+                  { "type": "mrkdwn", "text": "*Trigger:*\n${TRIGGER_LABEL}" },
+                  { "type": "mrkdwn", "text": "*Branch:*\n\`${{ github.ref_name }}\`" },
                   { "type": "mrkdwn", "text": "*Passed:*\n${{ steps.summary.outputs.passed }}" },
                   { "type": "mrkdwn", "text": "*Failed:*\n${{ steps.summary.outputs.failed }}" },
                   { "type": "mrkdwn", "text": "*Skipped:*\n${{ steps.summary.outputs.skipped }}" },
-                  { "type": "mrkdwn", "text": "*Timed out:*\n${{ steps.summary.outputs.timed_out }}" },
-                  { "type": "mrkdwn", "text": "*Interrupted:*\n${{ steps.summary.outputs.interrupted }}" },
-                  { "type": "mrkdwn", "text": "*Duration:*\n${{ steps.summary.outputs.duration_sec }}s" }
+                  { "type": "mrkdwn", "text": "*Timed Out:*\n${{ steps.summary.outputs.timed_out }}" },
+                  { "type": "mrkdwn", "text": "*Duration:*\n${{ steps.summary.outputs.duration }}" },
+                  { "type": "mrkdwn", "text": "*Environment:*\nChopBet CI (dev)" }
                 ]
               },
               {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "*Run:* ${RUN_URL}"
-                }
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": { "type": "plain_text", "text": "View Run", "emoji": true },
+                    "url": "${RUN_URL}",
+                    "style": "primary"
+                  }
+                ]
               }
             ]
           }

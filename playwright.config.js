@@ -1,6 +1,9 @@
-const { defineConfig, devices } = require('@playwright/test');
+import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
 
-module.exports = defineConfig({
+dotenv.config();
+
+export default defineConfig({
   testDir: './tests',
 
   fullyParallel: false,
@@ -20,6 +23,7 @@ module.exports = defineConfig({
       ],
 
   use: {
+    baseURL: 'https://dev.chopbet.ci',
     headless: !!process.env.CI,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

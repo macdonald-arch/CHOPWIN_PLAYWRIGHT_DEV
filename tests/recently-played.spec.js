@@ -1,41 +1,19 @@
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '../fixtures/base.fixture.js';
+import { RecentlyPlayedPage } from '../pages/RecentlyPlayedPage.js';
 
 test.describe('Recently Played', () => {
 
-  test('User can open a recently played game', async ({ page }) => {
+  test('POSITIVE - user can open a recently played game', async ({ authenticatedPage }) => {
+    const recentlyPlayed = new RecentlyPlayedPage(authenticatedPage);
 
-    // Go to login page
-    await page.goto('https://dev.chopbet.ci/login?next=/casino');
+    await recentlyPlayed.navigate();
 
-    // Fill login form
-    await page.locator('.phone-input').fill('0584043553');
-    await page.locator('input[type="password"]:visible').fill('Tessy2');
+    await expect(authenticatedPage).toHaveURL(/games\/recent/);
 
-    // Click login and wait for navigation
-    await Promise.all([
-      page.waitForNavigation(),
-      page.getByRole('button', { name: 'Connexion' }).click()
-    ]);
+    await recentlyPlayed.openGame('Chicken X');
 
-    // Ensure login completed
-    await expect(page).not.toHaveURL(/login/);
-
-    // Navigate to recently played
-    await page.goto('https://dev.chopbet.ci/games/recent');
-
-    await expect(page).toHaveURL(/games\/recent/);
-
-    // Click Chicken X game
-    const chickenxGame = page.getByRole('button', { name: 'Chicken X', exact: true }).first();
-
-
-    await chickenxGame.click(); 
-    
-
-
-    // Verify game modal opened
-    //await expect(page.getByRole('heading', { name: /Chicken-X/i })).toBeVisible();
-
+    // Verify game launched — modal or game frame becomes visible
+    await expect(authenticatedPage).not.toHaveURL(/games\/recent/);
   });
 
 });

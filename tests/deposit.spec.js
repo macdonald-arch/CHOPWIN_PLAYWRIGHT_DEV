@@ -1,26 +1,66 @@
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '../fixtures/base.fixture.js';
+import { DepositPage } from '../pages/DepositPage.js';
+
+const VALID_PIN = process.env.TEST_PIN || '1234';
 
 test.describe('Deposit', () => {
 
-  test('Can complete a deposit successfully', async ({ page }) => {
-    await page.goto('https://dev.chopbet.ci/login?next=/casino');
-    await page.getByRole('textbox', { name: 'Numéro de téléphone' }).click();
-    await page.getByRole('textbox', { name: 'Numéro de téléphone' }).fill('0584043553');
-    await page.getByRole('textbox', { name: 'Mot de passe' }).click();
-    await page.getByRole('textbox', { name: 'Mot de passe' }).fill('Tessy2');
-    await page.getByRole('button', { name: 'Connexion' }).click();
-    await page.getByRole('button', { name: 'Toggle wallet dropdown' }).click();
-    await page.getByRole('link', { name: 'Mon espace perso' }).nth(1).click();
-    await page.getByRole('button', { name: 'Dépôt' }).click();
-    await page.getByRole('textbox', { name: 'Entre le montant que Tu' }).click();
-    await page.getByRole('textbox', { name: 'Entre le montant que Tu' }).fill('500');
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('textbox', { name: 'Mot de passe' }).click();
-    await page.getByRole('textbox', { name: 'Mot de passe' }).fill('1234');
-    await page.getByRole('button', { name: 'Finaliser le paiement' }).click();
-    await expect(page.getByText('Ton dépôt de 500.00 FCFA est')).toBeVisible({ timeout: 20000 });
-    await page.getByRole('button', { name: 'continuePlaying' }).click();
+  // -------------------------------------------------------------------------
+  // POSITIVE
+  // -------------------------------------------------------------------------
+
+  test('POSITIVE - valid deposit completes successfully', async ({ authenticatedPage }) => {
+    const deposit = new DepositPage(authenticatedPage);
+
+    await deposit.completeDeposit(500, VALID_PIN);
+
+    await expect(deposit.successMessage).toBeVisible({ timeout: 20000 });
+    await deposit.continuePlayingBtn.click();
   });
 
-  
+  // -------------------------------------------------------------------------
+  // NEGATIVE
+  // -------------------------------------------------------------------------
+
+  test('NEGATIVE - amount below minimum (99) shows error', async ({ authenticatedPage }) => {
+    const deposit = new DepositPage(authenticatedPage);
+
+    await deposit.openDepositForm();
+    await deposit.enterAmount(99);
+
+    // Platform disables Continue for out-of-range amounts rather than showing
+    // a post-submit error — assert the button stays disabled
+    await expect(deposit.continueBtn).toBeDisabled();
+  });
+
+  test('NEGATIVE - amount above maximum (2,500,001) shows error', async ({ authenticatedPage }) => {
+    const deposit = new DepositPage(authenticatedPage);
+
+    await deposit.openDepositForm();
+    await deposit.enterAmount(2500001);
+    await deposit.submitAmount();
+
+    await expect(deposit.errorAlert).toBeVisible({ timeout: 10000 });
+  });
+
+  test('NEGATIVE - invalid PIN shows error', async ({ authenticatedPage }) => {
+    const deposit = new DepositPage(authenticatedPage);
+
+    await deposit.openDepositForm();
+    await deposit.enterAmount(500);
+    await deposit.submitAmount();
+    await deposit.enterPin('0000');
+    await deposit.finalisePayment();
+
+    await expect(deposit.errorAlert).toBeVisible({ timeout: 10000 });
+  });
+
+  test('NEGATIVE - empty amount field keeps continue button disabled', async ({ authenticatedPage }) => {
+    const deposit = new DepositPage(authenticatedPage);
+
+    await deposit.openDepositForm();
+
+    await expect(deposit.continueBtn).toBeDisabled();
+  });
+
 });

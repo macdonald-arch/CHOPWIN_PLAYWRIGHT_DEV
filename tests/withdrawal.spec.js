@@ -1,24 +1,60 @@
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '../fixtures/base.fixture.js';
+import { WithdrawalPage } from '../pages/WithdrawalPage.js';
 
 test.describe('Withdrawal', () => {
 
-  test('Can complete a withdrawal successfully', async ({ page }) => {
-    await page.goto('https://dev.chopbet.ci/login?next=/casino');
-    await page.getByRole('textbox', { name: 'Numéro de téléphone' }).click();
-    await page.getByRole('textbox', { name: 'Numéro de téléphone' }).fill('0584043553');
-    await page.getByRole('textbox', { name: 'Mot de passe' }).click();
-    await page.getByRole('textbox', { name: 'Mot de passe' }).fill('Tessy2');
-    await page.getByRole('button', { name: 'Connexion' }).click();
-    await page.getByRole('button', { name: 'Toggle wallet dropdown' }).click();
-    await page.getByRole('link', { name: 'Mon espace perso' }).nth(1).click();
-    await page.getByRole('button', { name: 'Retrait' }).click();
-    await page.getByRole('textbox', { name: 'Sélectionne un montant' }).click();
-    await page.getByRole('textbox', { name: 'Sélectionne un montant' }).fill('500');
-    await page.getByRole('button', { name: 'Continue' }).click();
-    //await expect(page.getByRole('button', { name: 'Retour au jeu' })).toBeVisible({ timeout: 30000 });
+  // -------------------------------------------------------------------------
+  // POSITIVE
+  // -------------------------------------------------------------------------
+
+  test('POSITIVE - valid withdrawal completes successfully', async ({ authenticatedPage }) => {
+    const withdrawal = new WithdrawalPage(authenticatedPage);
+
+    await withdrawal.completeWithdrawal(500);
+
+    await expect(withdrawal.successBtn).toBeVisible({ timeout: 30000 });
   });
 
+  // -------------------------------------------------------------------------
+  // NEGATIVE
+  // -------------------------------------------------------------------------
 
-  
+  test('NEGATIVE - amount below minimum (99) shows error', async ({ authenticatedPage }) => {
+    const withdrawal = new WithdrawalPage(authenticatedPage);
+
+    await withdrawal.openWithdrawalForm();
+    await withdrawal.enterAmount(99);
+
+    await expect(withdrawal.continueBtn).toBeDisabled();
+  });
+
+  test('NEGATIVE - amount above maximum (2,500,001) shows error', async ({ authenticatedPage }) => {
+    const withdrawal = new WithdrawalPage(authenticatedPage);
+
+    await withdrawal.openWithdrawalForm();
+    await withdrawal.enterAmount(2500001);
+    await withdrawal.submitAmount();
+
+    await expect(withdrawal.errorAlert).toBeVisible({ timeout: 10000 });
+  });
+
+  test('NEGATIVE - amount exceeding balance shows error', async ({ authenticatedPage }) => {
+    const withdrawal = new WithdrawalPage(authenticatedPage);
+
+    await withdrawal.openWithdrawalForm();
+    await withdrawal.enterAmount(2000000);
+    await withdrawal.submitAmount();
+
+    await expect(withdrawal.errorAlert).toBeVisible({ timeout: 10000 });
+  });
+
+  test('NEGATIVE - empty amount field keeps continue button disabled', async ({ authenticatedPage }) => {
+    const withdrawal = new WithdrawalPage(authenticatedPage);
+
+    await withdrawal.openWithdrawalForm();
+
+    // Do not fill amount — button should be disabled
+    await expect(withdrawal.continueBtn).toBeDisabled();
+  });
 
 });
