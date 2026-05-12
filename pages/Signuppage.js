@@ -10,6 +10,7 @@ export class SignupPage {
     this.passwordInput        = page.getByRole('textbox', { name: 'Mot de passe', exact: true });
     this.confirmPasswordInput = page.getByRole('textbox', { name: 'Confirme ton mot de passe' });
     this.continueBtn          = page.getByRole('button', { name: 'Continue' });
+    
 
     // OTP CHANNEL
     this.smsBtn = page.locator('button:has-text("SMS")');
@@ -67,3 +68,4 @@ export class SignupPage {
     return '071' + Math.floor(10000000 + Math.random() * 90000000);
   }
 }
+
