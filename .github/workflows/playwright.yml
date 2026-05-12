@@ -40,7 +40,7 @@ jobs:
       - name: Run Playwright tests
         id: playwright
         continue-on-error: true
-        run: npx playwright test --reporter=dot,html,json
+        run: npx playwright test
 
       - name: Read Playwright JSON report
         if: always()
@@ -72,12 +72,15 @@ jobs:
           try {
             const report = JSON.parse(fs.readFileSync('test-results/results.json', 'utf8'));
             for (const suite of report.suites || []) walkSuite(suite);
+            console.log('Results — passed:', passed, 'failed:', failed, 'skipped:', skipped, 'timedOut:', timedOut);
           } catch (e) {
-            console.log('Could not read Playwright JSON report:', e.message);
+            console.error('Could not read Playwright JSON report:', e.message);
+            // Don't exit — still write outputs so Slack gets something meaningful
           }
 
           const totalFailed = failed + timedOut + interrupted;
-          const status = totalFailed > 0 ? 'failed' : 'passed';
+          const total = passed + failed + skipped + timedOut + interrupted;
+          const status = (totalFailed > 0 || total === 0) ? 'failed' : 'passed';
           const durationMin = Math.floor(durationMs / 60000);
           const durationSec = Math.round((durationMs % 60000) / 1000);
           const durationFormatted = durationMin > 0
