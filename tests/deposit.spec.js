@@ -14,7 +14,10 @@ test.describe('Deposit', () => {
 
     await deposit.completeDeposit(500, VALID_PIN);
 
-    await expect(deposit.successMessage).toBeVisible({ timeout: 20000 });
+    await expect(deposit.successMessage).toBeVisible({
+      timeout: 20000
+    });
+
     await deposit.continuePlayingBtn.click();
   });
 
@@ -28,8 +31,6 @@ test.describe('Deposit', () => {
     await deposit.openDepositForm();
     await deposit.enterAmount(99);
 
-    // Platform disables Continue for out-of-range amounts rather than showing
-    // a post-submit error — assert the button stays disabled
     await expect(deposit.continueBtn).toBeDisabled();
   });
 
@@ -40,7 +41,9 @@ test.describe('Deposit', () => {
     await deposit.enterAmount(2500001);
     await deposit.submitAmount();
 
-    await expect(deposit.errorAlert).toBeVisible({ timeout: 10000 });
+    await expect(deposit.errorAlert).toBeVisible({
+      timeout: 10000
+    });
   });
 
   test('NEGATIVE - invalid PIN shows error', async ({ authenticatedPage }) => {
@@ -52,7 +55,9 @@ test.describe('Deposit', () => {
     await deposit.enterPin('0000');
     await deposit.finalisePayment();
 
-    await expect(deposit.errorAlert).toBeVisible({ timeout: 10000 });
+    await expect(deposit.errorAlert).toBeVisible({
+      timeout: 10000
+    });
   });
 
   test('NEGATIVE - empty amount field keeps continue button disabled', async ({ authenticatedPage }) => {
