@@ -101,7 +101,6 @@ jobs:
           fs.appendFileSync(out, 'interrupted=' + interrupted + '\n');
           fs.appendFileSync(out, 'duration=' + durationFormatted + '\n');
           "
-
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -109,6 +108,16 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
+
+      - name: Setup GitHub Pages
+        if: always()
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./playwright-report
 
       - name: Upload test results
         if: always()
